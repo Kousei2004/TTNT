@@ -8,34 +8,33 @@ import time
 from pygame.locals import *
 
 TIME_LIMITED = 1800
-
-# Constants
-TILE_SIZE = 64
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 FPS = 60
 
+
 class Game:
+     # Kiểm tra giá trị hợp lệ của từng ô trong bản đồ trò chơi
     def is_valid_value(self,char):
-        if ( char == ' ' or #floor
-            char == '#' or #wall
-            char == '@' or #worker on floor
-            char == '.' or #dock
-            char == '*' or #box on dock
-            char == '$' or #box
-            char == '+' ): #worker on dock
+        if ( char == ' ' or #khoảng trắng
+            char == '#' or #tường
+            char == '@' or #người chơi
+            char == '.' or #đích
+            char == '*' or #thùng hoặc đích
+            char == '$' or #thùng
+            char == '+' ): #người chơi đứng trên đích
             return True
         else:
             print("LỖI: Giá trị được thêm vào không hợp lệ")
             return False
 
-    def __init__(self,matrix):
-        self.heuristic = 0
-        self.pathSol = ""
-        self.stack = []
-        self.matrix = matrix
+    def __init__(self, matrix):#khởi tạo các giá trị
+        self.heuristic = 0  # Giá trị heuristics (được dùng trong A* search)
+        self.pathSol = ""  # Lưu đường đi để tìm ra lời giải
+        self.stack = []  # Stack lưu các bước di chuyển để có thể quay lại
+        self.matrix = matrix  # Lưu trạng thái của bản đồ trò chơi
 
-    def __lt__(self, other):
+    def __lt__(self, other): 
         return self.heuristic < other.heuristic
 
     def load_size(self):
@@ -46,26 +45,26 @@ class Game:
                 x = len(row)
         return (x * 64, y * 64)
 
-    def get_matrix(self):
+    def get_matrix(self): # Lấy trạng thái của bản đồ trò chơi
         return self.matrix
 
-    def print_matrix(self):
+    def print_matrix(self): # In ma trận trạng thái ra màn hình console
         for row in self.matrix:
             for char in row:
                 sys.stdout.write(char)
                 sys.stdout.flush()
             sys.stdout.write('\n')
 
-    def get_content(self,x,y):
+    def get_content(self,x,y):  # Lấy nội dung tại một vị trí (x, y) cụ thể
         return self.matrix[y][x]
 
-    def set_content(self,x,y,content):
+    def set_content(self,x,y,content):# Đặt giá trị mới vào vị trí (x, y)
         if self.is_valid_value(content):
             self.matrix[y][x] = content
         else:
              print("LỖI: Giá trị '"+content+"' được thêm vào không hợp lệ")
 
-    def worker(self):
+    def worker(self): # Tìm vị trí hiện tại của người chơi (@ hoặc +)
         x = 0
         y = 0
         for row in self.matrix:
@@ -77,7 +76,7 @@ class Game:
             y = y + 1
             x = 0
 
-    def box_list(self):
+    def box_list(self): # Tìm danh sách vị trí của các hộp ($)
         x = 0
         y = 0
         boxList = []
@@ -90,7 +89,7 @@ class Game:
             x = 0
         return boxList
 
-    def dock_list(self):
+    def dock_list(self): # Tìm danh sách vị trí của các điểm đích (.)
         x = 0
         y = 0
         dockList = []
@@ -103,25 +102,25 @@ class Game:
             x = 0
         return dockList
 
-    def can_move(self,x,y):
+    def can_move(self,x,y): # Kiểm tra người chơi có thể di chuyển đến ô (x, y) hay không
         return self.get_content(self.worker()[0]+x,self.worker()[1]+y) not in ['#','*','$']
 
-    def next(self,x,y):
+    def next(self,x,y): # Lấy nội dung của ô tiếp theo nếu người chơi di chuyển đến đó
         return self.get_content(self.worker()[0]+x,self.worker()[1]+y)
 
-    def can_push(self,x,y):
+    def can_push(self,x,y):  # Kiểm tra xem có thể đẩy hộp khôn
         return (self.next(x,y) in ['*','$'] and self.next(x+x,y+y) in [' ','.'])
 
-    def is_completed(self):
+    def is_completed(self): # Kiểm tra xem trò chơi đã hoàn thành chưa (tất cả hộp đã nằm trên điểm đích)
         for row in self.matrix:
             for cell in row:
                 if cell == '$':
                     return False
         return True
 
-    def move_box(self,x,y,a,b):
-#        (x,y) -> move to do
-#        (a,b) -> box to move
+    def move_box(self,x,y,a,b):  # Di chuyển hộp theo hướng cụ thể
+#        (x,y) -> người chơi di chuyển
+#        (a,b) -> thùng di chuyển
         current_box = self.get_content(x,y)
         future_box = self.get_content(x+a,y+b)
         if current_box == '$' and future_box == ' ':
@@ -137,7 +136,7 @@ class Game:
             self.set_content(x+a,y+b,'*')
             self.set_content(x,y,'.')
 
-    def unmove(self):
+    def unmove(self):  
         if len(self.stack) > 0:
             movement = self.stack.pop()
             if movement[2]:
@@ -147,7 +146,7 @@ class Game:
             else:
                 self.move(movement[0] * -1,movement[1] * -1, False)
 
-    def move(self,x,y,save):
+    def move(self,x,y,save):  # Thực hiện bước di chuyển của người chơi, có thể đẩy hộp nếu cần
         if self.can_move(x,y):
             current = self.worker()
             future = self.next(x,y)
@@ -212,7 +211,7 @@ class Game:
                 self.set_content(current[0]+x,current[1]+y,'+')
                 if save: self.stack.append((x,y,True))
 
-''' Find next valid moves of a node: worker can move into a space or can push a box'''
+''' Tìm các bước di chuyển hợp lệ tiếp theo của một nút: công nhân có thể di chuyển vào một ô hoặc có thể đẩy một hộp'''
 def validMove(state):
     x = 0
     y = 0
@@ -328,123 +327,6 @@ def worker_to_box(state):
             p = abs(worker[0] - box[0]) + abs(worker[1] - box[1])
     return p
 
-''' Algorithms return path to win the game in type of string:
-        U: move up
-        D: move down
-        L: move left
-        R: move right
-    If there is no solution, return string "NoSol" '''
-
-def BFSsolution(game):
-    start = time.time()
-    node_generated = 0
-    state = copy.deepcopy(game) # Parent Node                 
-    node_generated += 1
-    if is_deadlock(state):
-        end = time.time()
-        print("Thời gian tìm giải pháp:",round(end -start,2))
-        print("Số node đã thăm:",node_generated)
-        print("Không có giải pháp!")
-        return "NoSol"
-    stateSet = queue.Queue()    
-    stateSet.put(state)
-    stateExplored = []       
-    print("Đang xử lý...")
-    
-    while not stateSet.empty():
-        if (time.time() - start) >= TIME_LIMITED:
-             print("Hết thời gian!")
-             return "TimeOut"                     
-        currState = stateSet.get()                     
-        move = validMove(currState)                     
-        stateExplored.append(currState.get_matrix())    
-
-        for step in move:                               
-            newState = copy.deepcopy(currState)
-            node_generated += 1
-            if step == "U":
-                newState.move(0,-1,False)
-            elif step == "D":
-                newState.move(0,1,False)
-            elif step == "L":
-                newState.move(-1,0,False)
-            elif step == "R":
-                newState.move(1,0,False)
-            newState.pathSol += step
-        
-            if newState.is_completed():
-                end = time.time()
-                print("Thời gian tìm giải pháp:",round(end -start,2),"giây")
-                print("Số node đã thăm:",node_generated)
-                print("Giải pháp:",newState.pathSol)
-                return newState.pathSol
-
-            if (newState.get_matrix() not in stateExplored) and (not is_deadlock(newState)):
-                stateSet.put(newState)
-    end = time.time()
-    print("Thời gian tìm giải pháp:",round(end -start,2))
-    print("Số node đã thăm:",node_generated)
-    print("Không có giải pháp!")
-    return "NoSol"
-
-def AstarSolution(game):
-    start = time.time()
-    node_generated = 0
-    state = copy.deepcopy(game) # Parent Node
-    state.heuristc = worker_to_box(state) + get_distance(state)
-    node_generated += 1
-    if is_deadlock(state):
-        end = time.time()
-        print("Thời gian tìm giải pháp:",round(end -start,2))
-        print("Số node đã thăm:",node_generated)
-        print("Không có giải pháp!")
-        return "NoSol"                 
-    stateSet = queue.PriorityQueue()    # Queue to store traversed nodes (low index -> high priority) 
-    stateSet.put(state)
-    stateExplored = []                 # list of visited node (store matrix of nodes)
-    print("Đang xử lý...")
-    '''Traverse until there is no available node (No Solution)'''
-    while not stateSet.empty():
-        if (time.time() - start) >= TIME_LIMITED:
-            print("Hết thời gian!")
-            return "TimeOut"                       
-        currState = stateSet.get()                      # get the top node of the queue to be the current node
-        move = validMove(currState)                     # find next valid moves of current node in type of list of char ["U","D","L","R"]
-        stateExplored.append(currState.get_matrix())    # add matrix of current node to visited list
-        
-        ''' For each valid move:
-                Generate child nodes by updating the current node with move
-                If the child node is not visited và not lead to deadlock (box on the corner), put it in queue of nodes
-                If the child node is the end node to win, return the path of it'''
-        for step in move:                              
-            newState = copy.deepcopy(currState)
-            node_generated += 1
-            if step == "U":
-                newState.move(0,-1,False)
-            elif step == "D":
-                newState.move(0,1,False)
-            elif step == "L":
-                newState.move(-1,0,False)
-            elif step == "R":
-                newState.move(1,0,False)
-            newState.pathSol += step
-            newState.heuristic = worker_to_box(newState) + get_distance(newState)
-        
-            if newState.is_completed():
-                end = time.time()
-                print("Thời gian tìm giải pháp:",round(end -start,2),"giây")
-                print("Số node đã thăm:",node_generated)
-                print("Giải pháp:",newState.pathSol)
-                return newState.pathSol
-
-            if (newState.get_matrix() not in stateExplored) and (not is_deadlock(newState)):
-                stateSet.put(newState)
-    end = time.time()
-    print("Thời gian tìm giải pháp:",round(end -start,2))
-    print("Số node đã thăm:",node_generated)
-    print("Không có giải pháp!")
-    return "NoSol"
-
 def playByBot(game,move):
     if move == "U":
         game.move(0,-1,False)
@@ -476,7 +358,7 @@ def map_open(filename, level):
                     for c in line:
                         if c != '\n' and c in [' ','#','@','+','$','*','.']:
                             row.append(c)
-                        elif c == '\n': #jump to next row when newline
+                        elif c == '\n': 
                             continue
                         else:
                             print("LỖI: Cấp độ "+str(level)+" có giá trị không hợp lệ "+c)
@@ -486,26 +368,25 @@ def map_open(filename, level):
                     break
         return matrix
 
-
 def print_game(matrix,screen):
     screen.blit(pygame.transform.scale(background, screen.get_size()), (0, 0))
     x = 0
     y = 0
     for row in matrix:
         for char in row:
-            if char == ' ': #floor
+            if char == ' ': 
                 screen.blit(pygame.transform.scale(floor, (64, 64)),(x,y))
-            elif char == '#': #wall
+            elif char == '#': 
                 screen.blit(pygame.transform.scale(wall, (64, 64)),(x,y))
-            elif char == '@': #worker on floor
+            elif char == '@': 
                 screen.blit(pygame.transform.scale(current_worker, (64, 64)),(x,y))
-            elif char == '.': #dock
+            elif char == '.': 
                 screen.blit(pygame.transform.scale(docker, (64, 64)),(x,y))
-            elif char == '*': #box on dock
+            elif char == '*': 
                 screen.blit(pygame.transform.scale(box_docked, (64, 64)),(x,y))
-            elif char == '$': #box
+            elif char == '$': 
                 screen.blit(pygame.transform.scale(box, (64, 64)),(x,y))
-            elif char == '+': #worker on dock
+            elif char == '+': 
                 screen.blit(pygame.transform.scale(current_worker, (64, 64)),(x,y))
             x = x + 64
         x = 0
@@ -520,13 +401,13 @@ def get_key():
     else:
       pass
 
+
 def display_box(screen, message):
-    """Print a message in a box in the middle of the screen"""
-    pygame.font.init()  # Initialize font system
+    """In một tin nhắn vào hộp ở giữa màn hình"""
+    pygame.font.init()  # Khởi tạo hệ thống phông chữ
     try:
         fontobject = pygame.font.Font("ARIAL.TTF", 18)
     except:
-        # Fallback to default system font if ARIAL.TTF is not found
         fontobject = pygame.font.SysFont(None, 18)
         
     pygame.draw.rect(screen, (0,0,0),
@@ -543,7 +424,7 @@ def display_box(screen, message):
     pygame.display.flip()
 
 def display_end(screen, msg):
-    pygame.font.init()  # Initialize font system
+    pygame.font.init()  
     if msg == "Done":
         message = "Hoàn thành cấp độ"
     elif msg == "Cannot":
@@ -554,7 +435,6 @@ def display_end(screen, msg):
     try:
         fontobject = pygame.font.Font("ARIAL.TTF", 18)
     except:
-        # Fallback to default system font if ARIAL.TTF is not found
         fontobject = pygame.font.SysFont(None, 18)
         
     pygame.draw.rect(screen, (0,0,0),
@@ -597,21 +477,13 @@ def create_start_screen():
     pygame.display.set_caption("Sokoban Game")
 
     # Màu sắc
-    BLACK = (0, 0, 0) 
     WHITE = (255, 255, 255)
-    
-    # Load và scale logo game
-    try:
-        logo = pygame.image.load("princess.png")
-        # Scale logo để vừa với kích thước mong muốn
-        logo = pygame.transform.scale(logo, (400, 200))
-        logo_rect = logo.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//3))
-    except:
-        logo = None
+    DARK_GREEN = (100, 167, 0)
 
     # Font cho text
-    font = pygame.font.Font("ARIAL.TTF", 32)
+    font = pygame.font.Font("ARIAL.TTF", 100)
     small_font = pygame.font.Font("ARIAL.TTF", 24)
+    very_small_font = pygame.font.Font("ARIAL.TTF",20)
 
     # Input box
     input_box = pygame.Rect(WINDOW_SIZE[0]//2 - 100, WINDOW_SIZE[1]//2 + 50, 200, 50)
@@ -644,34 +516,46 @@ def create_start_screen():
                         input_text += event.unicode
                         
         # Vẽ background
-        screen.fill(BLACK)
-        
+        screen.fill(DARK_GREEN)
+
         # Vẽ logo
-        # if logo:
-        screen.blit(logo, logo_rect)    
-        # else:
-        #     # Vẽ text thay thế nếu không có logo
-        #     title_text = font.render("SOKOBAN", True, WHITE)
-        #     title_rect = title_text.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//3))
-        #     screen.blit(title_text, title_rect)
+        title_text = font.render("SOKOBAN", True, WHITE)
+        title_rect = title_text.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2.8))
+        screen.blit(title_text, title_rect)
             
         # Vẽ label cho input box
         label = small_font.render("Nhập cấp độ:", True, WHITE)
-        label_rect = label.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2))
+        label_rect = label.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//1.8))
         screen.blit(label, label_rect)
         
-        # Vẽ input box
+      # Vẽ input box
         pygame.draw.rect(screen, WHITE, input_box, 2)
         text_surface = small_font.render(input_text, True, WHITE)
         text_rect = text_surface.get_rect(center=input_box.center)
         screen.blit(text_surface, text_rect)
-        
-        # Hiển thị hướng dẫn
+
+        # Hiển thị hướng dẫn với khoảng cách
         hint_text = small_font.render("Nhấn Enter để bắt đầu", True, WHITE)
-        hint_rect = hint_text.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2 + 150))
+        hint_rect = hint_text.get_rect(center=(WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2 + 130))  
         screen.blit(hint_text, hint_rect)
-        
+
+
+        # Thêm hướng dẫn phím điều khiển
+        controls = [
+            "Mũi tên ↑ ↓ ← →: Di chuyển | D: Hoàn tác bước di chuyển | N: Cấp độ tiếp theo",
+            "M: Cấp độ trước | Q: Thoát trò chơi | A: Giải thuật Astar  B: Giải thuật BFS",
+            "Q: Thoát trò chơi",
+        ]
+
+        y_offset = WINDOW_SIZE[1]//2 + 160
+        for line in controls:
+            control_text = very_small_font.render(line, True, WHITE)
+            control_rect = control_text.get_rect(center=(WINDOW_SIZE[0]//2, y_offset))
+            screen.blit(control_text, control_rect)
+            y_offset += 30  # Tăng khoảng cách giữa các dòng hướng dẫn
+
         pygame.display.flip()
+
 
 def start_game():
     level = create_start_screen()
@@ -681,20 +565,20 @@ def start_game():
         print("LỖI: Cấp độ không hợp lệ: " + str(level))
         sys.exit(2)
 
-# Tải các sprite cho các hướng khác nhau của người chơi
-worker_up = pygame.image.load('Player_up.png')
-worker_down = pygame.image.load('Player_down.png') 
-worker_left = pygame.image.load('Player_left.png')
-worker_right = pygame.image.load('Player_right.png')
+# Tải các hình cho các hướng khác nhau của người chơi
+worker_up = pygame.image.load('image/Player_up.png')
+worker_down = pygame.image.load('image/Player_down.png') 
+worker_left = pygame.image.load('image/Player_left.png')
+worker_right = pygame.image.load('image/Player_right.png')
 
-wall = pygame.image.load('wall2.png')
-floor = pygame.image.load('grass1.png')
-box = pygame.image.load('CrateDark_Brown.png')
-box_docked = pygame.image.load('Crate_Yellow.png')
-docker = pygame.image.load('EndPoint_Yellow.png')
-background = pygame.image.load('grass1.png')
+wall = pygame.image.load('image/wall2.png')
+floor = pygame.image.load('image/grass1.png')
+box = pygame.image.load('image/CrateDark_Brown.png')
+box_docked = pygame.image.load('image/Crate_Yellow.png')
+docker = pygame.image.load('image/EndPoint_Yellow.png')
+background = pygame.image.load('image/grass1.png')
 
-# First, add these functions before the main game loop:
+# Đầu tiên, thêm các hàm này trước vòng lặp trò chơi chính:
 
 def load_new_level(level):
     try:
@@ -710,48 +594,97 @@ def reset_game_state():
     i = 0 
     flagAuto = 0
 
-# Then modify the main game loop section:
 
-# Khởi tạo sprite mặc định cho người chơi
-current_worker = worker_down
-pygame.init()
+class AI:
+    def AstarSolution(game):
+        start = time.time()
+        node_generated = 0
+        state = copy.deepcopy(game) 
+        state.heuristc = worker_to_box(state) + get_distance(state)
+        node_generated += 1
+        
+        if is_deadlock(state):
+            end = time.time()
+            print("Thời gian tìm giải pháp:",round(end -start,2))
+            print("Số node đã thăm:",node_generated)
+            print("Không có giải pháp!")
+            return "NoSol"                 
+        
+        stateSet = queue.PriorityQueue() 
+        stateSet.put(state)
+        stateExplored = []
+        print("Đang xử lý...")
+        
+        while not stateSet.empty():
+            if (time.time() - start) >= TIME_LIMITED:
+                print("Hết thời gian!")
+                return "TimeOut"         
+                          
+            currState = stateSet.get() 
+            move = validMove(currState)
+            stateExplored.append(currState.get_matrix()) 
+                    
+            for step in move:                              
+                newState = copy.deepcopy(currState)
+                node_generated += 1
+                if step == "U":
+                    newState.move(0,-1,False)
+                elif step == "D":
+                    newState.move(0,1,False)
+                elif step == "L":
+                    newState.move(-1,0,False)
+                elif step == "R":
+                    newState.move(1,0,False)
+                    
+                newState.pathSol += step
+                newState.heuristic = worker_to_box(newState) + get_distance(newState)
+            
+                if newState.is_completed():
+                    end = time.time()
+                    print("Thời gian tìm giải pháp:",round(end -start,2),"giây")
+                    print("Số node đã thăm:",node_generated)
+                    print("Giải pháp:",newState.pathSol)
+                    return newState.pathSol
 
-level = start_game()
-current_level = int(level)
-game = Game(map_open('.\levels',current_level))
-size = game.load_size()
-screen = pygame.display.set_mode(size)
-sol = ""
-i = 0
-flagAuto = 0
+            
+                if (newState.get_matrix() not in stateExplored) and (not is_deadlock(newState)):
+                    stateSet.put(newState)
+                    
+        end = time.time()
+        print("Thời gian tìm giải pháp:",round(end -start,2))
+        print("Số node đã thăm:",node_generated)
+        print("Không có giải pháp!")
+        return "NoSol"
 
-while 1:
-    print_game(game.get_matrix(),screen)
 
-    if sol == "NoSol":
-        display_end(screen,"Cannot")
-    if sol == "TimeOut":
-        display_end(screen,"Out")
-    if game.is_completed():
-        display_end(screen,"Done")
+if __name__ == "__main__":  
+    current_worker = worker_down
+    pygame.init()
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: sys.exit(0)
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_n:  # Next level
-                current_level += 1
-                new_game, new_size = load_new_level(current_level)
-                if new_game:
-                    game = new_game
-                    if new_size != size:
-                        size = new_size
-                        screen = pygame.display.set_mode(size)
-                    reset_game_state()
-                else:
-                    current_level -= 1
-            elif event.key == pygame.K_m:  # Previous level
-                if current_level > 1:
-                    current_level -= 1
+    level = start_game()
+    current_level = int(level)
+    game = Game(map_open('.\levels',current_level))
+    size = game.load_size()
+    screen = pygame.display.set_mode(size)
+    sol = ""
+    i = 0
+    flagAuto = 0
+
+    while 1:
+        print_game(game.get_matrix(),screen)
+
+        if sol == "NoSol":
+            display_end(screen,"Cannot")
+        if sol == "TimeOut":
+            display_end(screen,"Out")
+        if game.is_completed():
+            display_end(screen,"Done")
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: sys.exit(0)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_n:  # Next level
+                    current_level += 1
                     new_game, new_size = load_new_level(current_level)
                     if new_game:
                         game = new_game
@@ -760,43 +693,55 @@ while 1:
                             screen = pygame.display.set_mode(size)
                         reset_game_state()
                     else:
-                        current_level += 1
-            elif event.key == pygame.K_a:
-                sol = AstarSolution(game)
-                flagAuto = 1
-            elif event.key == pygame.K_b:
-                sol = BFSsolution(game)
-                flagAuto = 1
-            elif event.key == pygame.K_UP: 
+                        current_level -= 1
+                elif event.key == pygame.K_m:  # Previous level
+                    if current_level > 1:
+                        current_level -= 1
+                        new_game, new_size = load_new_level(current_level)
+                        if new_game:
+                            game = new_game
+                            if new_size != size:
+                                size = new_size
+                                screen = pygame.display.set_mode(size)
+                            reset_game_state()
+                        else:
+                            current_level += 1
+                elif event.key == pygame.K_a:
+                    sol = AI.AstarSolution(game)
+                    flagAuto = 1
+                elif event.key == pygame.K_b:
+                    sol = AI.BFSsolution(game)
+                    flagAuto = 1
+                elif event.key == pygame.K_UP: 
+                    current_worker = worker_up
+                    game.move(0,-1, True)
+                elif event.key == pygame.K_DOWN:
+                    current_worker = worker_down 
+                    game.move(0,1, True)
+                elif event.key == pygame.K_LEFT:
+                    current_worker = worker_left
+                    game.move(-1,0, True)
+                elif event.key == pygame.K_RIGHT:
+                    current_worker = worker_right
+                    game.move(1,0, True)
+                elif event.key == pygame.K_q: sys.exit(0)
+                elif event.key == pygame.K_d: game.unmove()
+                elif event.key == pygame.K_c: sol = ""
+
+        if (flagAuto) and (i < len(sol)):
+            # Cập nhật hình ảnh người chơi khi tự động di chuyển
+            if sol[i] == 'U':
                 current_worker = worker_up
-                game.move(0,-1, True)
-            elif event.key == pygame.K_DOWN:
-                current_worker = worker_down 
-                game.move(0,1, True)
-            elif event.key == pygame.K_LEFT:
+            elif sol[i] == 'D':
+                current_worker = worker_down
+            elif sol[i] == 'L':
                 current_worker = worker_left
-                game.move(-1,0, True)
-            elif event.key == pygame.K_RIGHT:
+            elif sol[i] == 'R':
                 current_worker = worker_right
-                game.move(1,0, True)
-            elif event.key == pygame.K_q: sys.exit(0)
-            elif event.key == pygame.K_d: game.unmove()
-            elif event.key == pygame.K_c: sol = ""
+                
+            playByBot(game,sol[i])
+            i += 1
+            if i == len(sol): flagAuto = 0
+            time.sleep(0.1)
 
-    if (flagAuto) and (i < len(sol)):
-        # Cập nhật hình ảnh người chơi khi tự động di chuyển
-        if sol[i] == 'U':
-            current_worker = worker_up
-        elif sol[i] == 'D':
-            current_worker = worker_down
-        elif sol[i] == 'L':
-            current_worker = worker_left
-        elif sol[i] == 'R':
-            current_worker = worker_right
-            
-        playByBot(game,sol[i])
-        i += 1
-        if i == len(sol): flagAuto = 0
-        time.sleep(0.1)
-
-    pygame.display.update()
+        pygame.display.update()
